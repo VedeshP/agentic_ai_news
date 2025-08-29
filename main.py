@@ -2,15 +2,58 @@ import os
 from crewai import Agent, Task, Crew, Process
 from crewai_tools import SerperDevTool
 
+# now trying with google gemini api key
+from langchain_google_genai import ChatGoogleGenerativeAI
+
+from crewai import LLM
+
+
+from dotenv import load_dotenv
+
+load_dotenv()
+
 # --- IMPORTANT ---
 # Set up your API keys as environment variables
 # You can get a free Serper API key at https://serper.dev/
 # os.environ["OPENAI_API_KEY"] = "YOUR_OPENAI_API_KEY"
 # os.environ["SERPER_API_KEY"] = "YOUR_SERPER_API_KEY"
 
+
+google_api_key = os.getenv("GEMINI_API_KEY")
+serper_api_key = os.getenv("SERPER_API_KEY")
+
+print(google_api_key)
+print(serper_api_key)
+# Set the Serper API key for the tool to use
+os.environ["SERPER_API_KEY"] = serper_api_key
+
+
 # --- 1. Define Tools ---
 # Initialize the search tool
 search_tool = SerperDevTool()
+
+
+
+# --- 3. Instantiate the Gemini LLM with the API Key ---
+# This is the corrected instantiation, passing the key directly.
+# llm = ChatGoogleGenerativeAI(
+#     model="gemini-2.5-flash",
+#     google_api_key=google_api_key,
+#     # api_key=google_api_key,
+#     verbose=True,
+#     temperature=0.7,
+# )
+
+
+"""
+Cant't use langchain class here due to litellm problem 
+for litellm use crewai LLM class and set the api var name to ```GEMINI_API_KEY```
+"""
+
+llm = LLM(
+    model="gemini/gemini-2.0-flash",
+    temperature=0.7,
+)
 
 # --- 2. Define Your Agents ---
 # Define the Researcher Agent
@@ -20,7 +63,8 @@ researcher = Agent(
   backstory="""You are a seasoned research analyst, known for your ability to dig up insightful and relevant information from the web.""",
   verbose=True,
   allow_delegation=False,
-  tools=[search_tool]
+  tools=[search_tool],
+  llm=llm
 )
 
 # Define the Writer Agent
@@ -29,7 +73,8 @@ writer = Agent(
   goal='Craft compelling and summarized content from research findings.',
   backstory="""You are a renowned Content Strategist, known for your ability to transform complex information into clear and engaging summaries.""",
   verbose=True,
-  allow_delegation=False  # Set to False for this simple project
+  allow_delegation=False , # Set to False for this simple project
+  llm=llm
 )
 
 # --- 3. Create Tasks for Your Agents ---
@@ -51,10 +96,21 @@ write_task = Task(
 
 # --- 4. Assemble and Run Your Crew ---
 # Create the Crew with a sequential process
+# news_crew = Crew(
+#   agents=[researcher, writer],
+#   tasks=[research_task, write_task],
+#   process=Process.sequential
+# )
+
+
+
+
+# --- Assemble the Crew WITH THE GEMINI LLM ---
 news_crew = Crew(
   agents=[researcher, writer],
   tasks=[research_task, write_task],
   process=Process.sequential
+  # llm=llm  # <-- Pass the Gemini model to the crew
 )
 
 # Start the Crew's work
